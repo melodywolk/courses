@@ -1,0 +1,103 @@
+---
+title: "Statistical Inference Course Project Part 2"
+author: "Melody Wolk"
+date: "June 8, 2015"
+output: pdf_document
+---
+```{r, message=F, warning=F}
+library("ggplot2")
+# Load the data
+data(ToothGrowth)
+data <- ToothGrowth
+```
+
+# Underlying assumptions
+- The experiment was done with random assignment of guinea pigs to different dose level categories and supplement type 
+- They are members of the same underlying population
+
+# Exploratory data analysis
+Each sample is independent so we are going to use paired=FALSE
+
+```{r}
+ ggplot(data, aes(x=as.factor(dose), y=len, fill=dose))+geom_violin()+facet_grid(.~supp)+
+ggtitle("Analyzing tooth length data by supplement")+xlab("Dose in milligrams")+ylab("Tooth length")
+```
+
+We see that higher doses of supplements seem to give longer teeth. We also see that the variances amongst the samples are very different so we are going to use var.equal = FALSE.
+
+We can look a the scatter plot of the tooth length as a function of the dose:
+```{r}
+ggplot(data=ToothGrowth, aes(x=as.factor(dose), y=len, fill=supp)) + geom_point(stat="identity",) + 
+facet_grid(. ~ supp)  + xlab("Dose in miligrams") + ylab("Tooth length") + 
+guides(fill=guide_legend(title="Supplement type"))+stat_smooth(method="lm",aes(group=1))
+```
+
+which seems to confirm that an incresing dose leads to an increasing tooth length.
+Let's split by dose level and look at the effect of the supplement:
+```{r}
+ggplot(data=ToothGrowth, aes(x=as.factor(supp), y=len, fill=factor(dose))) + 
+geom_point(stat="identity",) + facet_grid(. ~ dose) + xlab("Supplements") + ylab("Tooth length") + 
+guides(fill=guide_legend(title="Supplement type"))+stat_smooth(method="lm",aes(group=1))
+```
+
+The trend is less clear here. We need to perform some tests!
+
+# Comparing tooth growth by supplement and dose
+
+## Effect of the dose
+First let's use confidence intervals to see if the trend that we have detected is meaningful.
+We split the data according to the different supplements:
+
+```{r}
+dataOJ <- data[data$supp=="OJ",]
+fitOJ <- lm(dataOJ$len ~ dataOJ$dose)
+summary(fitOJ)
+confint(fitOJ) 
+```
+
+This is consistent with a positive slope so an increase in the length with an increasing in the dose.
+What about the other supplement?
+```{r}
+dataVC <- data[data$supp=="VC",]
+fitVC <- lm(dataVC$len ~ dataVC$dose)
+
+summary(fitVC)
+confint(fitVC)
+```
+
+```{r}
+par(mfrow=c(1,2))
+plot(dataOJ$dose, dataOJ$len, xlab = "Dose in milligams", ylab="Tooth length", main="Supplement OJ")
+abline(fitOJ, lwd=3, col="red")
+plot(dataVC$dose, dataVC$len, xlab = "Dose in milligams", ylab="Tooth length", main="Supplement VC")
+abline(fitVC, lwd=3, col="red")
+legend('topright',c("Best fit"), col=c("red"), lty=c(1), bty="n", lwd=c(3))
+```
+
+This is also consistent with a positive slope.
+To confirm this we can also perform hypothesis testing. In order to do so we are going to split the data set for each dose. Our null hypothesis H0 is "the dose has no effect on the tooth lenght".
+```{r}
+t.test(data$len[data$dose==2], data$len[data$dose==1], paired = FALSE, var.equal = FALSE)
+t.test(data$len[data$dose==2], data$len[data$dose==0.5], paired = FALSE, var.equal = FALSE)
+t.test(data$len[data$dose==1], data$len[data$dose==0.5], paired = FALSE, var.equal = FALSE)
+```
+
+
+For each case, the p-value of the t-test is <0.05. Thus we can reject the null hypothesis, which subsequently means that we can assume that the dose change creates a positive effect on tooth length i.e the tooth length increases.
+
+## Effect of the supplement
+
+We can now look at the effect of the supplements.
+First looking at the confidence intervals for the slopes in the previous analysis, we see that they are consistent with each other within the confidence intervals. It means that there is no obvious effect of the supplement type.
+To confirm this, we can perform an hypothesis testing with H0 "the supplement has no effect on the tooth lenght".
+
+```{r}
+t.test(len~supp, data=data, paired=FALSE, var.equal = FALSE) 
+```
+
+We can see that the p-value of this test is greater than a significance level of 5%, we have not enough evidence to reject the null hypothesis i.e we cannot assume that the supplement type has en effect on tooth length.
+
+# Conclusions
+
+We found that the supplement type has no significant effect on the tooth growth. 
+However our results suggest that increasing the dose level leads to an increase in the tooth growth.
